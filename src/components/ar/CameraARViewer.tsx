@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Html } from '@react-three/drei';
-import { X, ZoomIn, ZoomOut, RotateCw, Camera, FlipHorizontal } from 'lucide-react';
-import { Product } from '@/data/mockData';
+import { OrbitControls, Environment, ContactShadows, Html, useGLTF } from '@react-three/drei';
+import { X, ZoomIn, ZoomOut, RotateCw, Camera, FlipHorizontal, Loader2 } from 'lucide-react';
+import type { Tables } from '@/lib/database.types';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
+import { Suspense } from 'react';
+
+type DBProduct = Tables<'products'>;
 
 interface CameraARViewerProps {
-  product: Product;
+  product: DBProduct;
   onClose: () => void;
 }
 
-const PlateModel = ({ product, scale }: { product: Product; scale: number }) => {
+function RealGLBModel({ url, scale }: { url: string; scale: number; }) {
+  const { scene } = useGLTF(url);
+  return <primitive object={scene} scale={scale * 2} position={[0, -0.5, 0]} />;
+}
+
+const PlateModel = ({ product, scale }: { product: DBProduct; scale: number }) => {
   const groupRef = useRef<THREE.Group>(null);
 
   return (
@@ -159,7 +167,22 @@ const CameraARViewer = ({ product, onClose }: CameraARViewerProps) => {
               <ambientLight intensity={0.6} />
               <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow />
               <directionalLight position={[-3, 4, -3]} intensity={0.4} />
-              <PlateModel product={product} scale={scale} />
+              
+              <Suspense fallback={
+                <Html center>
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <span className="text-white text-xs drop-shadow-md whitespace-nowrap">Baixando 3D...</span>
+                  </div>
+                </Html>
+              }>
+                {product.model3d_url ? (
+                  <RealGLBModel url={product.model3d_url} scale={scale} />
+                ) : (
+                  <PlateModel product={product} scale={scale} />
+                )}
+              </Suspense>
+
               <ContactShadows
                 position={[0, -0.05, 0]}
                 opacity={0.4}

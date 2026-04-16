@@ -1,12 +1,18 @@
 import { motion } from 'framer-motion';
-import { categories } from '@/data/mockData';
+
+interface CategoryItem {
+  id: string;
+  name: string;
+  icon: string;
+}
 
 interface CategoryFilterProps {
+  categories: CategoryItem[];
   selected: string;
   onSelect: (id: string) => void;
 }
 
-const CategoryFilter = ({ selected, onSelect }: CategoryFilterProps) => {
+const CategoryFilter = ({ categories, selected, onSelect }: CategoryFilterProps) => {
   return (
     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
       {categories.map((cat) => (

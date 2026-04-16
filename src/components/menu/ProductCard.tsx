@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion';
 import { Eye, Sparkles } from 'lucide-react';
-import { Product } from '@/data/mockData';
 import { useNavigate } from 'react-router-dom';
+import type { Tables } from '@/lib/database.types';
+
+type DBProduct = Tables<'products'>;
 
 interface ProductCardProps {
-  product: Product;
+  product: DBProduct;
   index: number;
 }
 
@@ -22,13 +24,16 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
     >
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
-          src={product.image}
+          src={
+            product.image_url ??
+            'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80'
+          }
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-        {product.arEnabled && (
+        {product.ar_enabled && (
           <div className="absolute top-3 right-3 glass-strong px-2.5 py-1 rounded-full flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-medium text-primary">AR</span>
@@ -36,7 +41,7 @@ const ProductCard = ({ product, index }: ProductCardProps) => {
         )}
         <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-muted-foreground">
           <Eye className="w-3.5 h-3.5" />
-          <span className="text-xs">{product.views}</span>
+          <span className="text-xs">{product.views ?? 0}</span>
         </div>
       </div>
       <div className="p-4">

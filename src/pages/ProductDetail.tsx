@@ -1,24 +1,63 @@
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Sparkles, Eye, Share2, Camera, Box } from 'lucide-react';
-import { products } from '@/data/mockData';
-import { useState, lazy, Suspense } from 'react';
+import { ArrowLeft, Sparkles, Eye, Share2, Camera, Box, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import type { Tables } from '@/lib/database.types';
 import ProductViewer3D from '@/components/ar/ProductViewer3D';
+import { useGLTF } from '@react-three/drei';
 
 const CameraARViewer = lazy(() => import('@/components/ar/CameraARViewer'));
+
+type DBProduct = Tables<'products'>;
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  const [product, setProduct] = useState<DBProduct | null>(null);
+  const [loading, setLoading] = useState(true);
+  
   const [showAR, setShowAR] = useState(false);
   const [showWebXR, setShowWebXR] = useState(false);
 
-  const product = products.find((p) => p.id === id);
+  useEffect(() => {
+    const fetchProduct = async () => {
+      if (!id) return;
+      setLoading(true);
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      setProduct(data);
+      setLoading(false);
+
+      // ✨ MAGIA AQUI: O modelo 3D começa a baixar ESCONDIDO no fundo
+      // enquanto o usuário lê o nome e o preço do prato.
+      if (data?.model3d_url) {
+        useGLTF.preload(data.model3d_url);
+      }
+    };
+    fetchProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
         <p className="text-muted-foreground">Produto não encontrado</p>
+        <button onClick={() => navigate('/')} className="px-4 py-2 border rounded-xl border-border text-foreground text-sm">
+          Voltar ao cardápio
+        </button>
       </div>
     );
   }
@@ -60,9 +99,9 @@ const ProductDetail = () => {
           {showAR ? (
             <ProductViewer3D product={product} />
           ) : (
-            <div className="relative aspect-square rounded-2xl overflow-hidden">
+            <div className="relative aspect-[4/3] sm:aspect-square rounded-2xl overflow-hidden bg-card">
               <img
-                src={product.image}
+                src={product.image_url ?? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80'}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
@@ -86,16 +125,18 @@ const ProductDetail = () => {
                   R$ {product.price.toFixed(2)}
                 </span>
                 <span className="flex items-center gap-1 text-muted-foreground text-sm">
-                  <Eye className="w-4 h-4" /> {product.views}
+                  <Eye className="w-4 h-4" /> {product.views ?? 0}
                 </span>
               </div>
             </div>
           </div>
 
-          <p className="text-muted-foreground leading-relaxed">{product.description}</p>
+          {product.description && (
+            <p className="text-muted-foreground leading-relaxed">{product.description}</p>
+          )}
 
           {/* Ingredients */}
-          {product.ingredients && (
+          {product.ingredients && product.ingredients.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-2">Ingredientes</h3>
               <div className="flex flex-wrap gap-2">
@@ -111,9 +152,9 @@ const ProductDetail = () => {
             </div>
           )}
 
-          {/* Action Buttons */}
-          {product.arEnabled && (
-            <div className="space-y-3">
+          {/* Action Buttons (Somente se AR estiver ativado) */}
+          {product.ar_enabled && (
+            <div className="space-y-3 pt-2">
               {/* AR Camera Button - Primary */}
               <motion.button
                 whileTap={{ scale: 0.97 }}
@@ -121,22 +162,24 @@ const ProductDetail = () => {
                 className="w-full py-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 gold-gradient text-primary-foreground gold-glow"
               >
                 <Camera className="w-5 h-5" />
-                Ver em AR na câmera
+                Ver na minha mesa
               </motion.button>
 
               {/* 3D Viewer Toggle - Secondary */}
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setShowAR(!showAR)}
-                className={`w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
-                  showAR
-                    ? 'bg-secondary text-secondary-foreground'
-                    : 'glass text-foreground hover:bg-surface-hover'
-                }`}
-              >
-                <Box className="w-5 h-5" />
-                {showAR ? 'Ver Foto' : 'Ver em 3D'}
-              </motion.button>
+              {product.model3d_url && (
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setShowAR(!showAR)}
+                  className={`w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
+                    showAR
+                      ? 'bg-secondary text-secondary-foreground'
+                      : 'glass text-foreground hover:bg-surface-hover'
+                  }`}
+                >
+                  <Box className="w-5 h-5" />
+                  {showAR ? 'Ver Foto Padrão' : 'Girar em 360°'}
+                </motion.button>
+              )}
             </div>
           )}
         </motion.div>
